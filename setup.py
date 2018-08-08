@@ -1,7 +1,15 @@
 import os
+import re
 from setuptools import setup, find_packages
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
+
+with open(os.path.join(base_dir, 'src', 'whatwg_url', '__init__.py')) as f:
+    for line in f:
+        match = re.search(r"^__version__\s+=\s+\"([^\"]+)\"$", line)
+        if match:
+            version = match.group(1)
+            break
 
 
 def get_long_description():
@@ -16,7 +24,7 @@ def get_long_description():
 
 setup(
     name="whatwg-url",
-    version="2018.8.2",
+    version=version,
     description="Python implementation of the WHATWG URL Living Standard",
     long_description=get_long_description(),
     long_description_content_type="text/markdown",
@@ -28,7 +36,7 @@ setup(
     python_requires=">=3.6",
     install_requires=["attrs", "idna"],
     classifiers=[
-        'Development Status :: 5 - Production/Stable',
+        'Development Status :: 2 - Pre-Alpha',
         'Intended Audience :: Developers',
         'Natural Language :: English',
         'License :: OSI Approved :: Apache Software License',

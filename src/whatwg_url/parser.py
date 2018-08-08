@@ -5,6 +5,7 @@ import re
 import ipaddress
 import idna
 import attr
+import encodings.idna as idna2003
 
 
 ASCII_ALPHA = set(string.ascii_letters)
@@ -340,6 +341,7 @@ class UrlParser(object):
         if is_not_special is None:
             is_not_special = False
 
+        # IPv6 parsing
         if host.startswith("["):
             if not host.endswith("]"):
                 self.validation_error = True
@@ -350,6 +352,7 @@ class UrlParser(object):
             except ipaddress.AddressValueError:
                 raise UrlParserError()
 
+        # Opaque-host parsing
         if is_not_special:
             codepoints = set(host)
             if "%" in codepoints:
@@ -360,24 +363,12 @@ class UrlParser(object):
 
             return "".join([percent_encode(c, C0_PERCENT_ENCODE) for c in host])
 
-        domain = string_percent_decode(host)
-        print("DOMAIN BYTES", domain)
-        domain = domain.decode("utf-8")
-
+        # Domain to ASCII
+        domain = string_percent_decode(host).decode("utf-8")
         print("DOMAIN", domain)
 
         try:
-            ascii_domain = (
-                idna.encode(
-                    domain,
-                    strict=False,
-                    uts46=True,
-                    std3_rules=False,
-                    transitional=False,
-                )
-                .decode("ascii")
-                .lower()
-            )
+            ascii_domain = domain_to_ascii(domain).decode('utf-8').lower()
             print("IDNA", ascii_domain)
 
             # TODO
@@ -388,6 +379,7 @@ class UrlParser(object):
             self.validation_error = True
             raise UrlParserError()
 
+        # IPv4 parsing
         try:
             return str(ipaddress.IPv4Address(host))
         except ipaddress.AddressValueError:
@@ -1079,3 +1071,13 @@ def percent_decode(bytes_: bytes) -> bytes:
             output.append(value.to_bytes(length=1, byteorder="little"))
 
     return b"".join(output)
+
+
+def domain_to_ascii(domain: str, strict=False) -> bytes:
+    try:
+        return idna.encode(domain, strict=strict, std3_rules=strict, transitional=False)
+    except idna.IDNAError as e:
+        try:
+            return idna2003.ToASCII(idna.uts46_remap(domain, std3_rules=strict, transitional=False))
+        except Exception:
+            raise e

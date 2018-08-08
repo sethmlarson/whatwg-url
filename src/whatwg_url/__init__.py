@@ -1,7 +1,7 @@
 from .parser import UrlParser, Url, UrlParserError
 
 __all__ = ["urlparse", "UrlParser", "Url", "UrlParserError"]
-__version__ = 'dev'
+__version__ = "dev"
 
 
 def urlparse(data: str, base=None) -> Url:
