@@ -132,6 +132,8 @@ _HEX_CHAR_MAP = dict(
     ]
 )
 
+IDNA_DOTS_REGEX = re.compile(u'[\u002e\u3002\uff0e\uff61]')
+
 
 SPECIAL_SCHEMES = {
     "ftp": 21,
@@ -370,13 +372,12 @@ class UrlParser(object):
         try:
             ascii_domain = domain_to_ascii(domain).decode('utf-8').lower()
             print("IDNA", ascii_domain)
-
-            # TODO
-            # for label in ascii_domain.split('.'):
-            #     if label:
-            #         idna.check_label(label)
         except idna.IDNAError:
             self.validation_error = True
+            raise UrlParserError()
+
+        # Contains forbidden host codepoint
+        if set(ascii_domain).intersection(FORBIDDEN_HOST_CODE_POINTS):
             raise UrlParserError()
 
         # IPv4 parsing
@@ -1074,10 +1075,29 @@ def percent_decode(bytes_: bytes) -> bytes:
 
 
 def domain_to_ascii(domain: str, strict=False) -> bytes:
-    try:
-        return idna.encode(domain, strict=strict, std3_rules=strict, transitional=False)
-    except idna.IDNAError as e:
-        try:
-            return idna2003.ToASCII(idna.uts46_remap(domain, std3_rules=strict, transitional=False))
-        except Exception:
-            raise e
+    """Taken from idna.encode()
+    """
+    domain = idna.uts46_remap(domain, std3_rules=strict, transitional=False)
+    trailing_dot = False
+    result = []
+    if strict:
+        labels = domain.split('.')
+    else:
+        labels = IDNA_DOTS_REGEX.split(domain)
+    if not labels or labels == ['']:
+        raise idna.IDNAError('Empty domain')
+    if labels[-1] == '':
+        del labels[-1]
+        trailing_dot = True
+    for label in labels:
+        s = idna2003.ToASCII(label)
+        if s:
+            result.append(s)
+        else:
+            raise idna.IDNAError('Empty label')
+    if trailing_dot:
+        result.append(b'')
+    s = b'.'.join(result)
+    if strict and not idna.valid_string_length(s, trailing_dot):
+        raise idna.IDNAError('Domain too long')
+    return s

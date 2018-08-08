@@ -34,17 +34,17 @@ def test_web_platform_tests(testdata):
     if base == "about:blank":
         base = None
     else:
-        base = whatwg_url.urlparse(base)
+        base = whatwg_url.parse_url(base)
         print(base.href)
 
     if testdata.get("failure", False):
         with pytest.raises(whatwg_url.UrlParserError):
-            whatwg_url.urlparse(testdata["input"], base=base)
+            whatwg_url.parse_url(testdata["input"], base=base)
 
     else:
         print("\nREAL VALUES\n")
 
-        url = whatwg_url.urlparse(testdata["input"], base=base)
+        url = whatwg_url.parse_url(testdata["input"], base=base)
 
         print("FINAL URL", str(url))
 

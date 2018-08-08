@@ -1,5 +1,4 @@
 from .parser import UrlParser, Url, UrlParserError
-from .parseresult import ParseResult
 
 __all__ = [
     "parse_url",
@@ -9,17 +8,16 @@ __all__ = [
     "Url",
     "UrlParserError",
     "urlparse",
-    "ParseResult",
 ]
 __version__ = "dev"
 
 
 def parse_url(url: str, base=None, encoding="utf-8") -> Url:
-    url = Url()
+    obj = Url()
     if isinstance(base, str):
         base = parse_url(base, encoding=encoding)
-    parser = UrlParser(url, base=base, encoding=encoding)
-    return parser.parse(data)
+    parser = UrlParser(obj, base=base, encoding=encoding)
+    return parser.parse(url)
 
 
 def normalize_url(url: str, base=None, encoding="utf-8") -> str:
@@ -34,5 +32,5 @@ def is_valid_url(url: str, encoding="utf-8") -> bool:
         return False
 
 
-def urlparse(urldata: str, base=None, encoding="utf-8") -> ParseResult:
+def urlparse(urldata: str, base=None, encoding="utf-8"):
     raise NotImplementedError("TODO")

@@ -46,7 +46,7 @@ print(parseresult.geturl())  # 'https://seth:larson@www.google.com:1234/maps?que
 ### URL Normalization
 
 The WHATWG URL specification describes methods of normalizing URL inputs to usable URLs.
-It handles percent-encodings, default ports, paths, IPv4 and IPv6 addresses, IDNA (2008 and 2003), malformed 
+It handles percent-encodings, default ports, paths, IPv4 and IPv6 addresses, IDNA (2008 and 2003), multiple slashes after scheme, etc.
 
 ```python
 import whatwg_url
