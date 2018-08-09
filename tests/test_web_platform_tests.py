@@ -48,8 +48,8 @@ def test_web_platform_tests(testdata):
 
         print("FINAL URL", str(url))
 
-        assert_with_empty(url.username, testdata.get("username", None))
-        assert_with_empty(url.password, testdata.get("password", None))
+        assert_with_empty(url._username, testdata.get("username", None))
+        assert_with_empty(url._password, testdata.get("password", None))
         assert_with_empty(url.path, testdata.get("pathname", None))
 
         port = testdata.get("port", None)
@@ -58,5 +58,5 @@ def test_web_platform_tests(testdata):
         if port == "":
             port = None
 
-        assert_with_empty(url.port, port)
+        assert_with_empty(url._port, port)
         assert url.href == testdata.get("href", None)

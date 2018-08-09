@@ -154,24 +154,53 @@ class _UrlParserReturn(Exception):
     pass
 
 
-@attr.s(str=True)
+@attr.s
 class Url:
-    scheme = attr.ib(default=None)  # type: typing.Optional[str]
-    hostname = attr.ib(default=None)  # type: typing.Optional[str]
-    port = attr.ib(default=None)  # type: typing.Optional[int]
-    username = attr.ib(default=None)  # type: typing.Optional[str]
-    password = attr.ib(default=None)  # type: typing.Optional[str]
-    query = attr.ib(default=None)  # type: typing.Optional[str]
-    fragment = attr.ib(default=None)  # type: typing.Optional[str]
+    _scheme = attr.ib(default=None)  # type: typing.Optional[str]
+    _hostname = attr.ib(default=None)  # type: typing.Optional[str]
+    _port = attr.ib(default=None)  # type: typing.Optional[int]
+    _username = attr.ib(default=None)  # type: typing.Optional[str]
+    _password = attr.ib(default=None)  # type: typing.Optional[str]
+    _query = attr.ib(default=None)  # type: typing.Optional[str]
+    _fragment = attr.ib(default=None)  # type: typing.Optional[str]
     _path = attr.ib(default=attr.Factory(list))  # type: typing.List[str]
 
     cannot_be_base_url = attr.ib(type=bool, default=False)  # type: bool
+    encoding = attr.ib(type=str, default='utf-8')  # type: str
+
+    @property
+    def scheme(self):
+        return self._scheme
+
+    @property
+    def hostname(self):
+        return self._hostname
+
+    @property
+    def port(self):
+        return self._port
+
+    @property
+    def username(self):
+        return self._username
+
+    @property
+    def password(self):
+        return self._password
+
+    @property
+    def query(self):
+        return self._query
+
+    @property
+    def fragment(self):
+        return self._fragment
 
     @property
     def host(self) -> str:
-        if self.port is None:
-            return self.hostname
-        return f"{self.hostname}:{self.port}"
+        if self._port is None:
+            return self._hostname
+        return f"{self._hostname}:{self._port}"
 
     @property
     def path(self) -> str:
@@ -180,29 +209,87 @@ class Url:
         else:
             return "".join([f"/{x}" for x in self._path])
 
+    @scheme.setter
+    def scheme(self, scheme: str):
+        parser = UrlParser(self, encoding=self.encoding)
+        parser.parse(scheme + ':', state_override=ParserState.SCHEME_START)
+
+    @username.setter
+    def username(self, username: str):
+        self._username = username
+
+    @password.setter
+    def password(self, password: str):
+        self._password = password
+
+    @hostname.setter
+    def hostname(self, hostname: str):
+        parser = UrlParser(self, encoding=self.encoding)
+        parser.parse(hostname, state_override=ParserState.HOSTNAME)
+
+    @port.setter
+    def port(self, port: int):
+        parser = UrlParser(self, encoding=self.encoding)
+        parser.parse(str(port), state_override=ParserState.PORT)
+
+    @path.setter
+    def path(self, path: str):
+        if self.cannot_be_base_url:
+            return
+
+        self._path = []
+        parser = UrlParser(self, encoding=self.encoding)
+        parser.parse(path, state_override=ParserState.PATH_START)
+
+    @query.setter
+    def query(self, query: str):
+        if query is None:
+            self._query = None
+            return
+
+        if query.startswith('?'):
+            query = query[1:]
+
+        self._query = ''
+        parser = UrlParser(self, encoding=self.encoding)
+        parser.parse(query, state_override=ParserState.QUERY)
+
+    @fragment.setter
+    def fragment(self, fragment: str):
+        if fragment is None:
+            self._fragment = None
+            return
+
+        if fragment.startswith('#'):
+            fragment = fragment[1:]
+
+        self._fragment = ''
+        parser = UrlParser(self, encoding=self.encoding)
+        parser.parse(fragment, state_override=ParserState.FRAGMENT)
+
     @property
     def includes_credentials(self) -> bool:
         """Determines if a URL includes credentials"""
-        return bool(self.username) or bool(self.password)
+        return bool(self._username) or bool(self._password)
 
     @property
     def href(self) -> str:
-        output = [f"{self.scheme}:"]
-        if self.hostname is not None:
+        output = [f"{self._scheme}:"]
+        if self._hostname is not None:
             output.append("//")
 
             if self.includes_credentials:
-                if self.username:
-                    output.append(self.username)
-                if self.password:
-                    output.append(f":{self.password}")
+                if self._username:
+                    output.append(self._username)
+                if self._password:
+                    output.append(f":{self._password}")
                 output.append("@")
 
-            output.append(self.hostname)
-            if self.port is not None:
-                output.append(f":{self.port}")
+            output.append(self._hostname)
+            if self._port is not None:
+                output.append(f":{self._port}")
 
-        if self.hostname is None and self.scheme == "file":
+        if self._hostname is None and self._scheme == "file":
             output.append("//")
 
         if self.cannot_be_base_url:
@@ -210,13 +297,19 @@ class Url:
         else:
             output.append(self.path)
 
-        if self.query is not None:
-            output.append(f"?{self.query}")
+        if self._query is not None:
+            output.append(f"?{self._query}")
 
-        if self.fragment is not None:
-            output.append(f"#{self.fragment}")
+        if self._fragment is not None:
+            output.append(f"#{self._fragment}")
 
         return "".join(output)
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} scheme={self._scheme:r} hostname={self._hostname:r} port={self._port:r} query={self._query:r} fragment={self._fragment:r}>"
+
+    def __str__(self):
+        return self.href
 
 
 class ParserState(enum.IntEnum):
@@ -290,9 +383,11 @@ class UrlParser(object):
         self._state = state_override or ParserState.SCHEME_START
 
         if encoding is None:
-            self.encoding = "utf-8"
+            self.encoding = self.url.encoding or "utf-8"
         else:
             self.encoding = encoding
+
+        self.url.encoding = self.encoding
 
         while data and _is_c0_control_or_space(data[0]):
             self.validation_error = True
@@ -430,10 +525,8 @@ class UrlParser(object):
         elif c == ":":
             if self.state_override is not None:
                 if (
-                    self._buffer
-                    in SPECIAL_SCHEMES
-                    != self.url.scheme
-                    in SPECIAL_SCHEMES
+                    (self._buffer in SPECIAL_SCHEMES)
+                    != (self.url.scheme in SPECIAL_SCHEMES)
                 ):
                     raise _UrlParserReturn()
 
@@ -447,14 +540,14 @@ class UrlParser(object):
                 ):
                     raise _UrlParserReturn()
 
-            self.url.scheme = self._buffer
+            self.url._scheme = self._buffer
 
             if self.state_override is not None:
                 if (
                     self.url.scheme in SPECIAL_SCHEMES
                     and SPECIAL_SCHEMES[self.url.scheme] == self.url.port
                 ):
-                    self.url.port = None
+                    self.url._port = None
                 raise _UrlParserReturn()
 
             self._buffer = ""
@@ -499,10 +592,10 @@ class UrlParser(object):
             raise UrlParserError()
 
         elif self.base.cannot_be_base_url and c == "#":
-            self.url.scheme = self.base.scheme
+            self.url._scheme = self.base.scheme
             self.url._path = self.base._path.copy()
-            self.url.query = self.base.query
-            self.url.fragment = ""
+            self.url._query = self.base.query
+            self.url._fragment = ""
             self.url.cannot_be_base_url = True
             self._state = ParserState.FRAGMENT
 
@@ -535,37 +628,37 @@ class UrlParser(object):
 
     def _on_relative(self, c: str, _):
         """Handles the RELATIVE state"""
-        self.url.scheme = self.base.scheme
+        self.url._scheme = self.base.scheme
 
         if c == "":
-            self.url.username = self.base.username
-            self.url.password = self.base.password
-            self.url.hostname = self.base.hostname
-            self.url.port = self.base.port
+            self.url._username = self.base.username
+            self.url._password = self.base.password
+            self.url._hostname = self.base.hostname
+            self.url._port = self.base.port
             self.url._path = self.base._path.copy()
-            self.url.query = self.base.query
+            self.url._query = self.base.query
 
         elif c == "/":
             self._state = ParserState.RELATIVE_SLASH
 
         elif c == "?":
-            self.url.username = self.base.username
-            self.url.password = self.base.password
-            self.url.hostname = self.base.hostname
-            self.url.port = self.base.port
+            self.url._username = self.base.username
+            self.url._password = self.base.password
+            self.url._hostname = self.base.hostname
+            self.url._port = self.base.port
             self.url._path = self.base._path.copy()
-            self.url.query = ""
+            self.url._query = ""
 
             self._state = ParserState.QUERY
 
         elif c == "#":
-            self.url.username = self.base.username
-            self.url.password = self.base.password
-            self.url.hostname = self.base.hostname
-            self.url.port = self.base.port
+            self.url._username = self.base.username
+            self.url._password = self.base.password
+            self.url._hostname = self.base.hostname
+            self.url._port = self.base.port
             self.url._path = self.base._path.copy()
-            self.url.query = self.base.query
-            self.url.fragment = ""
+            self.url._query = self.base.query
+            self.url._fragment = ""
 
             self._state = ParserState.FRAGMENT
 
@@ -575,10 +668,10 @@ class UrlParser(object):
                 self._state = ParserState.RELATIVE_SLASH
 
             else:
-                self.url.username = self.base.username
-                self.url.password = self.base.password
-                self.url.hostname = self.base.hostname
-                self.url.port = self.base.port
+                self.url._username = self.base.username
+                self.url._password = self.base.password
+                self.url._hostname = self.base.hostname
+                self.url._port = self.base.port
                 self.url._path = self.base._path.copy()
 
                 if len(self.url._path):
@@ -597,10 +690,10 @@ class UrlParser(object):
             self._state = ParserState.AUTHORITY
 
         else:
-            self.url.username = self.base.username
-            self.url.password = self.base.password
-            self.url.hostname = self.base.hostname
-            self.url.port = self.base.port
+            self.url._username = self.base.username
+            self.url._password = self.base.password
+            self.url._hostname = self.base.hostname
+            self.url._port = self.base.port
 
             self._pointer -= 1
             self._state = ParserState.PATH
@@ -642,11 +735,11 @@ class UrlParser(object):
 
                 if self._password_token_seen_flag:
                     if self.url.password is None:
-                        self.url.password = ""
-                    self.url.password += percent_encode(char, USERINFO_PERCENT_ENCODE)
+                        self.url._password = ""
+                    self.url._password += percent_encode(char, USERINFO_PERCENT_ENCODE)
                 else:
                     if self.url.username is None:
-                        self.url.username = ""
+                        self.url._username = ""
                     self.url.username += percent_encode(char, USERINFO_PERCENT_ENCODE)
 
             self._buffer = ""
@@ -676,7 +769,7 @@ class UrlParser(object):
                 self.validation_error = True
                 raise UrlParserError()
 
-            self.url.hostname = self.parse_host(
+            self.url._hostname = self.parse_host(
                 self._buffer, self.url.scheme not in SPECIAL_SCHEMES
             )
             self._buffer = ""
@@ -700,7 +793,7 @@ class UrlParser(object):
                 self.validation_error = True
                 raise _UrlParserReturn()
 
-            self.url.hostname = self.parse_host(
+            self.url._hostname = self.parse_host(
                 self._buffer, self.url.scheme not in SPECIAL_SCHEMES
             )
 
@@ -737,7 +830,7 @@ class UrlParser(object):
                     self.validation_error = True
                     raise UrlParserError()
 
-                self.url.port = (
+                self.url._port = (
                     None if port == SPECIAL_SCHEMES.get(self.url.scheme, None) else port
                 )
                 self._buffer = ""
@@ -754,7 +847,7 @@ class UrlParser(object):
 
     def _on_file(self, c: str, remaining: str):
         """Handles the FILE state"""
-        self.url.scheme = "file"
+        self.url._scheme = "file"
 
         if c == "//" or c == "\\":
             if c == "\\":
@@ -763,29 +856,29 @@ class UrlParser(object):
 
         elif self.base is not None and self.base.scheme == "file":
             if c == "":
-                self.url.hostname = self.base.hostname
+                self.url._hostname = self.base.hostname
                 self.url._path = self.base._path.copy()
-                self.url.query = self.base.query
+                self.url._query = self.base.query
 
             elif c == "?":
-                self.url.hostname = self.base.hostname
+                self.url._hostname = self.base.hostname
                 self.url._path = self.base._path.copy()
-                self.url.query = ""
+                self.url._query = ""
 
                 self._state = ParserState.QUERY
 
             elif c == "#":
-                self.url.hostname = self.base.hostname
+                self.url._hostname = self.base.hostname
                 self.url._path = self.base._path.copy()
-                self.url.query = self.base.query
-                self.url.fragment = ""
+                self.url._query = self.base.query
+                self.url._fragment = ""
 
                 self._state = ParserState.FRAGMENT
 
             else:
                 match = WINDOWS_DRIVE_LETTER.search(c + remaining)
                 if match is None:
-                    self.url.hostname = self.base.hostname
+                    self.url._hostname = self.base.hostname
                     self.url._path = self.base._path.copy()
                     self.shorten_url_path()
 
@@ -817,7 +910,7 @@ class UrlParser(object):
                     self.url._path.append(self.base._path[0])
 
                 else:
-                    self.url.hostname = self.base.hostname
+                    self.url._hostname = self.base.hostname
 
             self._state = ParserState.PATH
             self._pointer -= 1
@@ -835,7 +928,7 @@ class UrlParser(object):
                 self._state = ParserState.PATH
 
             elif self._buffer == "":
-                self.url.hostname = ""
+                self.url._hostname = ""
 
                 if self.state_override is not None:
                     raise _UrlParserReturn()
@@ -848,7 +941,7 @@ class UrlParser(object):
                 )
 
                 if self.url.hostname == "localhost":
-                    self.url.hostname = ""
+                    self.url._hostname = ""
 
                 if self.state_override is not None:
                     raise _UrlParserReturn()
@@ -871,11 +964,11 @@ class UrlParser(object):
                 self._pointer -= 1
 
         elif self.state_override is None and c == "?":
-            self.url.query = ""
+            self.url._query = ""
             self._state = ParserState.QUERY
 
         elif self.state_override is None and c == "#":
-            self.url.fragment = ""
+            self.url._fragment = ""
             self._state = ParserState.FRAGMENT
 
         elif c != "":
@@ -913,7 +1006,7 @@ class UrlParser(object):
                 ):
                     if self.url.hostname != "" and self.url.hostname is not None:
                         self.validation_error = True
-                        self.url.hostname = ""
+                        self.url._hostname = ""
 
                     self._buffer = self._buffer[0] + ":" + self._buffer[2:]
 
@@ -928,11 +1021,11 @@ class UrlParser(object):
                     self.url._path.pop(0)
 
             if c == "?":
-                self.url.query = ""
+                self.url._query = ""
                 self._state = ParserState.QUERY
 
             elif c == "#":
-                self.url.fragment = ""
+                self.url._fragment = ""
                 self._state = ParserState.FRAGMENT
 
         else:
@@ -945,11 +1038,11 @@ class UrlParser(object):
     def _on_cannot_be_base_url(self, c: str, remaining: str):
         """Handles the CANNOT BE BASE URL state"""
         if c == "?":
-            self.url.query = ""
+            self.url._query = ""
             self._state = ParserState.QUERY
 
         elif c == "#":
-            self.url.fragment = ""
+            self.url._fragment = ""
             self._state = ParserState.FRAGMENT
 
         else:
@@ -972,7 +1065,7 @@ class UrlParser(object):
             self.encoding = "utf-8"
 
         if self.state_override is None and c == "#":
-            self.url.fragment = ""
+            self.url._fragment = ""
             self._state = ParserState.FRAGMENT
 
         elif c != "":
@@ -985,7 +1078,7 @@ class UrlParser(object):
             bytes_ = c.encode(self.encoding)
 
             if bytes_.startswith(b"&#") and bytes_.endswith(b";"):
-                self.url.query += (b"%26%23" + bytes_[2:-1] + b"%3B").decode("ascii")
+                self.url._query += (b"%26%23" + bytes_[2:-1] + b"%3B").decode("ascii")
 
             else:
                 is_special = self.url.scheme in SPECIAL_SCHEMES
@@ -999,9 +1092,9 @@ class UrlParser(object):
                         or byte == 0x3e
                         or (is_special and byte == 0x27)
                     ):
-                        self.url.query += f"%{byte:02X}"
+                        self.url._query += f"%{byte:02X}"
                     else:
-                        self.url.query += chr(byte)
+                        self.url._query += chr(byte)
 
     def _on_fragment(self, c: str, remaining: str):
         if c == "":
@@ -1017,7 +1110,7 @@ class UrlParser(object):
             if c == "%" and TWO_ASCII_HEX.search(remaining) is None:
                 self.validation_error = True
 
-            self.url.fragment += percent_encode(c, FRAGMENT_PERCENT_ENCODE)
+            self.url._fragment += percent_encode(c, FRAGMENT_PERCENT_ENCODE)
 
 
 def string_percent_decode(data: str) -> bytes:
@@ -1075,29 +1168,33 @@ def percent_decode(bytes_: bytes) -> bytes:
 
 
 def domain_to_ascii(domain: str, strict=False) -> bytes:
-    """Taken from idna.encode()
+    """Attempt to encode with IDNA 2008 first, if that fails
+    then attempt to encode with IDNA 2003.
     """
-    domain = idna.uts46_remap(domain, std3_rules=strict, transitional=False)
-    trailing_dot = False
-    result = []
-    if strict:
-        labels = domain.split('.')
-    else:
-        labels = IDNA_DOTS_REGEX.split(domain)
-    if not labels or labels == ['']:
-        raise idna.IDNAError('Empty domain')
-    if labels[-1] == '':
-        del labels[-1]
-        trailing_dot = True
-    for label in labels:
-        s = idna2003.ToASCII(label)
-        if s:
-            result.append(s)
+    try:
+        return idna.encode(domain, strict=strict, std3_rules=strict, uts46=True, transitional=False)
+    except idna.IDNAError:
+        domain = idna.uts46_remap(domain, std3_rules=strict, transitional=False)
+        trailing_dot = False
+        result = []
+        if strict:
+            labels = domain.split('.')
         else:
-            raise idna.IDNAError('Empty label')
-    if trailing_dot:
-        result.append(b'')
-    s = b'.'.join(result)
-    if strict and not idna.valid_string_length(s, trailing_dot):
-        raise idna.IDNAError('Domain too long')
-    return s
+            labels = IDNA_DOTS_REGEX.split(domain)
+        if not labels or labels == ['']:
+            raise idna.IDNAError('Empty domain')
+        if labels[-1] == '':
+            del labels[-1]
+            trailing_dot = True
+        for label in labels:
+            s = idna2003.ToASCII(label)
+            if s:
+                result.append(s)
+            else:
+                raise idna.IDNAError('Empty label')
+        if trailing_dot:
+            result.append(b'')
+        s = b'.'.join(result)
+        if strict and not idna.valid_string_length(s, trailing_dot):
+            raise idna.IDNAError('Domain too long')
+        return s

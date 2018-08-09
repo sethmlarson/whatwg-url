@@ -26,7 +26,7 @@ def normalize_url(url: str, base=None, encoding="utf-8") -> str:
 
 def is_valid_url(url: str, encoding="utf-8") -> bool:
     try:
-        parse_url(url)
+        parse_url(url, encoding=encoding)
         return True
     except UrlParserError:
         return False
