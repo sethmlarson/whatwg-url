@@ -467,7 +467,7 @@ class UrlParser(object):
         try:
             ascii_domain = domain_to_ascii(domain).decode('utf-8').lower()
             print("IDNA", ascii_domain)
-        except idna.IDNAError:
+        except (idna.IDNAError, UnicodeError):
             self.validation_error = True
             raise UrlParserError()
 
@@ -476,12 +476,72 @@ class UrlParser(object):
             raise UrlParserError()
 
         # IPv4 parsing
-        try:
-            return str(ipaddress.IPv4Address(host))
-        except ipaddress.AddressValueError:
-            pass
+        return self.parse_ipv4_host(ascii_domain)
 
-        return ascii_domain
+    def parse_ipv4_host(self, ascii_domain: str) -> str:
+        """Attempts to parse a domain as an IPv4 address with
+        a lot of parsing rules for decimal, octal, hex, different
+        numbers of separators, etc.
+        """
+
+        def parse_ipv4_number(input_: str):
+            """Parses a single IPv4 number"""
+            print(f"Parsing {input_}")
+            try:
+                if len(input_) >= 2:
+                    if input_[:2].lower() == '0x':
+                        return int(input_[2:], 16), True
+
+                    elif input_.startswith('0'):
+                        return int(input_[1:], 8), True
+
+                if input_ == '':
+                    return 0, False
+
+                return int(input_), False
+            except ValueError:
+                return None, False
+
+        parts = ascii_domain.split('.')
+
+        if parts[-1] == '':
+            self.validation_error = True
+            if len(parts) > 1:
+                parts.pop(-1)
+
+        if len(parts) > 4:
+            return ascii_domain
+
+        numbers = []
+        for part in parts:
+            if part == '':
+                return ascii_domain
+
+            n, flag = parse_ipv4_number(part)
+            if n is None:
+                return ascii_domain
+
+            numbers.append(n)
+
+        for number in numbers[:-1]:
+            if number > 255:
+                self.validation_error = True
+
+        if numbers[-1] > 256 ** (5 - len(numbers)):
+            self.validation_error = True
+            raise UrlParserError()
+
+        ipv4 = numbers[-1]
+        numbers.pop(-1)
+        for i, number in enumerate(numbers):
+            ipv4 += number * (256 ** (3 - i))
+
+        output = []
+        for _ in range(4):
+            output.insert(0, str(ipv4 % 256))
+            ipv4 //= 256
+
+        return '.'.join(output)
 
     def reset(self):
         self.validation_error = False
@@ -936,7 +996,7 @@ class UrlParser(object):
                 self._state = ParserState.PATH_START
 
             else:
-                self.url.hostname = self.parse_host(
+                self.url._hostname = self.parse_host(
                     self._buffer, self.url.scheme not in SPECIAL_SCHEMES
                 )
 
@@ -1187,7 +1247,13 @@ def domain_to_ascii(domain: str, strict=False) -> bytes:
             del labels[-1]
             trailing_dot = True
         for label in labels:
-            s = idna2003.ToASCII(label)
+            try:
+                s = idna2003.ToASCII(label)
+            except UnicodeError as e:
+                if strict:
+                    raise
+                result.append(label)
+                continue
             if s:
                 result.append(s)
             else:
