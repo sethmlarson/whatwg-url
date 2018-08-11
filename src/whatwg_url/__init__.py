@@ -1,4 +1,4 @@
-from .parser import UrlParser, Url, UrlParserError
+from .parser import UrlParser, Url, UrlParserError, OPAQUE_ORIGIN
 
 __all__ = [
     "parse_url",
@@ -7,6 +7,7 @@ __all__ = [
     "UrlParser",
     "Url",
     "UrlParserError",
+    "OPAQUE_ORIGIN",
     "urlparse",
 ]
 __version__ = "dev"

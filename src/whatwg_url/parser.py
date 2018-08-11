@@ -8,6 +8,12 @@ import attr
 import encodings.idna as idna2003
 
 
+class _OpaqueOrigin(object):
+    def __eq__(self, _):
+        return False
+
+
+OPAQUE_ORIGIN = _OpaqueOrigin()
 ASCII_ALPHA = set(string.ascii_letters)
 ASCII_DIGITS = set(string.digits)
 ASCII_ALPHANUMERIC = ASCII_ALPHA | ASCII_DIGITS
@@ -271,6 +277,23 @@ class Url:
     def includes_credentials(self) -> bool:
         """Determines if a URL includes credentials"""
         return bool(self._username) or bool(self._password)
+
+    @property
+    def origin(self):
+        if self.scheme == 'blob':
+            url = Url()
+            parser = UrlParser(url)
+            try:
+                parser.parse(self.path[0], encoding=self.encoding)
+            except UrlParserError:
+                return OPAQUE_ORIGIN
+            return url.origin
+
+        elif self.scheme in SPECIAL_SCHEMES and self.scheme != 'file':
+            return (self.scheme, self.hostname, self.port, None)
+
+        else:
+            return OPAQUE_ORIGIN
 
     @property
     def href(self) -> str:

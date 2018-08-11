@@ -2,5 +2,6 @@
 
 ## Unreleased
 
-- Implemented `UrlParser` and `Url`.
-- Implemented `UrlParser.parse_ipv4_host`.
+- Added `UrlParser` and `Url`.
+- Added `UrlParser.parse_ipv4_host`.
+- Added `Url.origin`.
