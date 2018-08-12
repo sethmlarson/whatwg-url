@@ -124,13 +124,13 @@ FORBIDDEN_HOST_CODE_POINTS = {
     "]",
 }
 
-WINDOWS_DRIVE_LETTER = re.compile(r"^[a-zA-Z][:|][/\\?#]?")
+WINDOWS_DRIVE_LETTER = re.compile(r"^([a-zA-Z][:|])(?:[/\\?#]|$)")
 NORMALIZED_WINDOWS_DRIVE_LETTER = re.compile(r"^[a-zA-Z][:]$")
 
 AUTHORITY_DELIMITERS = {"", "/", "?", "#"}
-PATH_DELIMITERS = {"", "/", "?", "#"}
+PATH_DELIMITERS = {"", "/", "\\", "?", "#"}
 
-_HEX_CHAR_MAP = dict(
+HEX_CHAR_MAP = dict(
     [
         ((a + b).encode("ascii"), chr(int(a + b, 16)).encode("charmap"))
         for a in string.hexdigits
@@ -484,7 +484,11 @@ class UrlParser(object):
             return "".join([percent_encode(c, C0_PERCENT_ENCODE) for c in host])
 
         # Domain to ASCII
-        domain = string_percent_decode(host).decode("utf-8")
+        try:
+            domain = string_percent_decode(host).decode("utf-8")
+        except UnicodeDecodeError:
+            raise UrlParserError()
+
         print("DOMAIN", domain)
 
         try:
@@ -510,18 +514,23 @@ class UrlParser(object):
         def parse_ipv4_number(input_: str):
             """Parses a single IPv4 number"""
             print(f"Parsing {input_}")
+
+            r = 10
+
             try:
                 if len(input_) >= 2:
                     if input_[:2].lower() == '0x':
-                        return int(input_[2:], 16), True
+                        r = 16
+                        input_ = input_[2:]
 
                     elif input_.startswith('0'):
-                        return int(input_[1:], 8), True
+                        r = 8
+                        input_ = input_[1:]
 
                 if input_ == '':
                     return 0, False
 
-                return int(input_), False
+                return int(input_, r), r != 10
             except ValueError:
                 return None, False
 
@@ -546,16 +555,19 @@ class UrlParser(object):
 
             numbers.append(n)
 
-        for number in numbers[:-1]:
+        print('IPv4 NUMBERS', numbers)
+
+        for i, number in enumerate(numbers):
             if number > 255:
                 self.validation_error = True
+                if i < len(numbers) - 1:
+                    raise UrlParserError()
 
-        if numbers[-1] > 256 ** (5 - len(numbers)):
+        if numbers[-1] >= 256 ** (5 - len(numbers)):
             self.validation_error = True
             raise UrlParserError()
 
-        ipv4 = numbers[-1]
-        numbers.pop(-1)
+        ipv4 = numbers.pop(-1)
         for i, number in enumerate(numbers):
             ipv4 += number * (256 ** (3 - i))
 
@@ -861,7 +873,7 @@ class UrlParser(object):
             if self.state_override == ParserState.HOSTNAME:
                 raise _UrlParserReturn()
 
-        elif c in PATH_DELIMITERS or (c == "\\" and self.url.scheme in SPECIAL_SCHEMES):
+        elif c in AUTHORITY_DELIMITERS or (c == "\\" and self.url.scheme in SPECIAL_SCHEMES):
             self._pointer -= 1
 
             if self.url.scheme in SPECIAL_SCHEMES and self._buffer == "":
@@ -932,7 +944,7 @@ class UrlParser(object):
         """Handles the FILE state"""
         self.url._scheme = "file"
 
-        if c == "//" or c == "\\":
+        if c == "/" or c == "\\":
             if c == "\\":
                 self.validation_error = True
             self._state = ParserState.FILE_SLASH
@@ -968,6 +980,9 @@ class UrlParser(object):
                 else:
                     self.validation_error = True
 
+                self._state = ParserState.PATH
+                self._pointer -= 1
+
         else:
             self._state = ParserState.PATH
             self._pointer -= 1
@@ -983,7 +998,7 @@ class UrlParser(object):
             if (
                 self.base is not None
                 and self.base.scheme == "file"
-                and WINDOWS_DRIVE_LETTER.search(c + remaining) is not None
+                and WINDOWS_DRIVE_LETTER.search(c + remaining) is None
             ):
                 if (
                     len(self.base._path) > 0
@@ -1004,7 +1019,7 @@ class UrlParser(object):
             self._pointer -= 1
 
             if (
-                self.state_override is not None
+                self.state_override is None
                 and WINDOWS_DRIVE_LETTER.match(self._buffer) is not None
             ):
                 self.validation_error = True
@@ -1272,10 +1287,10 @@ def domain_to_ascii(domain: str, strict=False) -> bytes:
         for label in labels:
             try:
                 s = idna2003.ToASCII(label)
-            except UnicodeError as e:
+            except UnicodeError:
                 if strict:
                     raise
-                result.append(label)
+                result.append(label.encode('utf-8'))
                 continue
             if s:
                 result.append(s)
