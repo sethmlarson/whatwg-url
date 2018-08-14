@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 
-with open(os.path.join(base_dir, 'src', 'whatwg_url', '__init__.py')) as f:
+with open(os.path.join(base_dir, "src", "whatwg_url", "__init__.py")) as f:
     for line in f:
         match = re.search(r"^__version__\s+=\s+\"([^\"]+)\"$", line)
         if match:
@@ -36,9 +36,9 @@ setup(
     python_requires=">=3.6",
     install_requires=["attrs", "idna"],
     classifiers=[
-        'Development Status :: 2 - Pre-Alpha',
-        'Intended Audience :: Developers',
-        'Natural Language :: English',
-        'License :: OSI Approved :: Apache Software License',
+        "Development Status :: 2 - Pre-Alpha",
+        "Intended Audience :: Developers",
+        "Natural Language :: English",
+        "License :: OSI Approved :: Apache Software License",
     ],
 )

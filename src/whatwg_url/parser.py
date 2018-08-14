@@ -138,7 +138,7 @@ HEX_CHAR_MAP = dict(
     ]
 )
 
-IDNA_DOTS_REGEX = re.compile(u'[\u002e\u3002\uff0e\uff61]')
+IDNA_DOTS_REGEX = re.compile("[\u002e\u3002\uff0e\uff61]")
 
 
 SPECIAL_SCHEMES = {
@@ -172,7 +172,7 @@ class Url:
     _path = attr.ib(default=attr.Factory(list))  # type: typing.List[str]
 
     cannot_be_base_url = attr.ib(type=bool, default=False)  # type: bool
-    encoding = attr.ib(type=str, default='utf-8')  # type: str
+    encoding = attr.ib(type=str, default="utf-8")  # type: str
 
     @property
     def scheme(self):
@@ -217,8 +217,12 @@ class Url:
 
     @scheme.setter
     def scheme(self, scheme: str):
-        parser = UrlParser(self, encoding=self.encoding)
-        parser.parse(scheme + ':', state_override=ParserState.SCHEME_START)
+        parser = UrlParser(self)
+        parser.parse(
+            scheme + ":",
+            encoding=self.encoding,
+            state_override=ParserState.SCHEME_START,
+        )
 
     @username.setter
     def username(self, username: str):
@@ -230,12 +234,14 @@ class Url:
 
     @hostname.setter
     def hostname(self, hostname: str):
-        parser = UrlParser(self, encoding=self.encoding)
-        parser.parse(hostname, state_override=ParserState.HOSTNAME)
+        parser = UrlParser(self)
+        parser.parse(
+            hostname, encoding=self.encoding, state_override=ParserState.HOSTNAME
+        )
 
     @port.setter
     def port(self, port: int):
-        parser = UrlParser(self, encoding=self.encoding)
+        parser = UrlParser(self)
         parser.parse(str(port), state_override=ParserState.PORT)
 
     @path.setter
@@ -244,7 +250,7 @@ class Url:
             return
 
         self._path = []
-        parser = UrlParser(self, encoding=self.encoding)
+        parser = UrlParser(self)
         parser.parse(path, state_override=ParserState.PATH_START)
 
     @query.setter
@@ -253,12 +259,12 @@ class Url:
             self._query = None
             return
 
-        if query.startswith('?'):
+        if query.startswith("?"):
             query = query[1:]
 
-        self._query = ''
-        parser = UrlParser(self, encoding=self.encoding)
-        parser.parse(query, state_override=ParserState.QUERY)
+        self._query = ""
+        parser = UrlParser(self)
+        parser.parse(query, encoding=self.encoding, state_override=ParserState.QUERY)
 
     @fragment.setter
     def fragment(self, fragment: str):
@@ -266,12 +272,14 @@ class Url:
             self._fragment = None
             return
 
-        if fragment.startswith('#'):
+        if fragment.startswith("#"):
             fragment = fragment[1:]
 
-        self._fragment = ''
-        parser = UrlParser(self, encoding=self.encoding)
-        parser.parse(fragment, state_override=ParserState.FRAGMENT)
+        self._fragment = ""
+        parser = UrlParser(self)
+        parser.parse(
+            fragment, encoding=self.encoding, state_override=ParserState.FRAGMENT
+        )
 
     @property
     def includes_credentials(self) -> bool:
@@ -280,7 +288,7 @@ class Url:
 
     @property
     def origin(self):
-        if self.scheme == 'blob':
+        if self.scheme == "blob":
             url = Url()
             parser = UrlParser(url)
             try:
@@ -289,11 +297,26 @@ class Url:
                 return OPAQUE_ORIGIN
             return url.origin
 
-        elif self.scheme in SPECIAL_SCHEMES and self.scheme != 'file':
+        elif self.scheme in SPECIAL_SCHEMES and self.scheme != "file":
             return (self.scheme, self.hostname, self.port, None)
 
         else:
             return OPAQUE_ORIGIN
+
+    @property
+    def authority(self):
+        output = []
+        if self.includes_credentials:
+            if self._username:
+                output.append(self._username)
+            if self._password:
+                output.append(f":{self._password}")
+            output.append("@")
+
+        output.append(self._hostname)
+        if self._port is not None:
+            output.append(f":{self._port}")
+        return "".join(output)
 
     @property
     def href(self) -> str:
@@ -329,7 +352,14 @@ class Url:
         return "".join(output)
 
     def __repr__(self):
-        return f"<{self.__class__.__name__} scheme={self._scheme:r} hostname={self._hostname:r} port={self._port:r} query={self._query:r} fragment={self._fragment:r}>"
+        return (
+            f"<{self.__class__.__name__} "
+            f"scheme={self._scheme:r} "
+            f"hostname={self._hostname:r} "
+            f"port={self._port:r} "
+            f"query={self._query:r} "
+            f"fragment={self._fragment:r}>"
+        )
 
     def __str__(self):
         return self.href
@@ -360,11 +390,14 @@ class ParserState(enum.IntEnum):
 
 
 class UrlParser(object):
-    def __init__(self, url, base=None, encoding="utf-8"):
+    def __init__(self, url=None):
         super().__init__()
+
+        if url is None:
+            url = Url()
+
         self.url = url
-        self.base = base
-        self.encoding = encoding
+        self.base = None
         self.state_override = None
         self.validation_error = False
 
@@ -399,10 +432,15 @@ class UrlParser(object):
             ParserState.FRAGMENT: self._on_fragment,
         }
 
-    def parse(self, data: str, encoding=None, state_override=None) -> Url:
+    def parse(self, data: str, base=None, encoding=None, state_override=None) -> Url:
         self.reset()
-        self.state_override = state_override
 
+        if isinstance(base, str):
+            base_parser = UrlParser()
+            base = base_parser.parse(base, encoding=encoding)
+        self.base = base
+
+        self.state_override = state_override
         self._state = state_override or ParserState.SCHEME_START
 
         if encoding is None:
@@ -492,7 +530,7 @@ class UrlParser(object):
         print("DOMAIN", domain)
 
         try:
-            ascii_domain = domain_to_ascii(domain).decode('utf-8').lower()
+            ascii_domain = domain_to_ascii(domain).decode("utf-8").lower()
             print("IDNA", ascii_domain)
         except (idna.IDNAError, UnicodeError):
             self.validation_error = True
@@ -519,24 +557,24 @@ class UrlParser(object):
 
             try:
                 if len(input_) >= 2:
-                    if input_[:2].lower() == '0x':
+                    if input_[:2].lower() == "0x":
                         r = 16
                         input_ = input_[2:]
 
-                    elif input_.startswith('0'):
+                    elif input_.startswith("0"):
                         r = 8
                         input_ = input_[1:]
 
-                if input_ == '':
+                if input_ == "":
                     return 0, False
 
                 return int(input_, r), r != 10
             except ValueError:
                 return None, False
 
-        parts = ascii_domain.split('.')
+        parts = ascii_domain.split(".")
 
-        if parts[-1] == '':
+        if parts[-1] == "":
             self.validation_error = True
             if len(parts) > 1:
                 parts.pop(-1)
@@ -546,7 +584,7 @@ class UrlParser(object):
 
         numbers = []
         for part in parts:
-            if part == '':
+            if part == "":
                 return ascii_domain
 
             n, flag = parse_ipv4_number(part)
@@ -555,7 +593,7 @@ class UrlParser(object):
 
             numbers.append(n)
 
-        print('IPv4 NUMBERS', numbers)
+        print("IPv4 NUMBERS", numbers)
 
         for i, number in enumerate(numbers):
             if number > 255:
@@ -576,7 +614,7 @@ class UrlParser(object):
             output.insert(0, str(ipv4 % 256))
             ipv4 //= 256
 
-        return '.'.join(output)
+        return ".".join(output)
 
     def reset(self):
         self.validation_error = False
@@ -619,9 +657,8 @@ class UrlParser(object):
 
         elif c == ":":
             if self.state_override is not None:
-                if (
-                    (self._buffer in SPECIAL_SCHEMES)
-                    != (self.url.scheme in SPECIAL_SCHEMES)
+                if (self._buffer in SPECIAL_SCHEMES) != (
+                    self.url.scheme in SPECIAL_SCHEMES
                 ):
                     raise _UrlParserReturn()
 
@@ -873,7 +910,9 @@ class UrlParser(object):
             if self.state_override == ParserState.HOSTNAME:
                 raise _UrlParserReturn()
 
-        elif c in AUTHORITY_DELIMITERS or (c == "\\" and self.url.scheme in SPECIAL_SCHEMES):
+        elif c in AUTHORITY_DELIMITERS or (
+            c == "\\" and self.url.scheme in SPECIAL_SCHEMES
+        ):
             self._pointer -= 1
 
             if self.url.scheme in SPECIAL_SCHEMES and self._buffer == "":
@@ -1270,18 +1309,20 @@ def domain_to_ascii(domain: str, strict=False) -> bytes:
     then attempt to encode with IDNA 2003.
     """
     try:
-        return idna.encode(domain, strict=strict, std3_rules=strict, uts46=True, transitional=False)
+        return idna.encode(
+            domain, strict=strict, std3_rules=strict, uts46=True, transitional=False
+        )
     except idna.IDNAError:
         domain = idna.uts46_remap(domain, std3_rules=strict, transitional=False)
         trailing_dot = False
         result = []
         if strict:
-            labels = domain.split('.')
+            labels = domain.split(".")
         else:
             labels = IDNA_DOTS_REGEX.split(domain)
-        if not labels or labels == ['']:
-            raise idna.IDNAError('Empty domain')
-        if labels[-1] == '':
+        if not labels or labels == [""]:
+            raise idna.IDNAError("Empty domain")
+        if labels[-1] == "":
             del labels[-1]
             trailing_dot = True
         for label in labels:
@@ -1290,15 +1331,15 @@ def domain_to_ascii(domain: str, strict=False) -> bytes:
             except UnicodeError:
                 if strict:
                     raise
-                result.append(label.encode('utf-8'))
+                result.append(label.encode("utf-8"))
                 continue
             if s:
                 result.append(s)
             else:
-                raise idna.IDNAError('Empty label')
+                raise idna.IDNAError("Empty label")
         if trailing_dot:
-            result.append(b'')
-        s = b'.'.join(result)
+            result.append(b"")
+        s = b".".join(result)
         if strict and not idna.valid_string_length(s, trailing_dot):
-            raise idna.IDNAError('Domain too long')
+            raise idna.IDNAError("Domain too long")
         return s

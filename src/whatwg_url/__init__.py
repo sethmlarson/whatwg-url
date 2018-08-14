@@ -1,4 +1,5 @@
 from .parser import UrlParser, Url, UrlParserError, OPAQUE_ORIGIN
+from .urllib import urlparse, urljoin
 
 __all__ = [
     "parse_url",
@@ -9,16 +10,14 @@ __all__ = [
     "UrlParserError",
     "OPAQUE_ORIGIN",
     "urlparse",
+    "urljoin",
 ]
 __version__ = "dev"
 
 
 def parse_url(url: str, base=None, encoding="utf-8") -> Url:
-    obj = Url()
-    if isinstance(base, str):
-        base = parse_url(base, encoding=encoding)
-    parser = UrlParser(obj, base=base, encoding=encoding)
-    return parser.parse(url)
+    parser = UrlParser()
+    return parser.parse(url, base=base, encoding=encoding)
 
 
 def normalize_url(url: str, base=None, encoding="utf-8") -> str:
@@ -31,7 +30,3 @@ def is_valid_url(url: str, encoding="utf-8") -> bool:
         return True
     except UrlParserError:
         return False
-
-
-def urlparse(urldata: str, base=None, encoding="utf-8"):
-    raise NotImplementedError("TODO")
