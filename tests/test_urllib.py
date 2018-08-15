@@ -32,24 +32,52 @@ def test_assert_same_urlparse_result(url):
 
 
 @pytest.mark.parametrize(
-    ['base', 'url', 'expected'],
+    ["base", "url", "expected"],
     [
-        ('http://www.google.com/', '', 'http://www.google.com/'),
-        ('http://www.google.com/', '/', 'http://www.google.com/'),
-        ('http://www.google.com/', 'maps/', 'http://www.google.com/maps/'),
-        ('http://www.google.com/', 'one/two/', 'http://www.google.com/one/two/'),
-        ('http://www.google.com/mail', '/maps/', 'http://www.google.com/maps/'),
-        ('http://www.google.com/', './', 'http://www.google.com/'),
-        ('http://www.google.com/maps', '..', 'http://www.google.com/'),
-        ('http://www.google.com/', 'https://www.google.com/', 'https://www.google.com/'),
-        ('http://www.google.com/', 'https://maps.google.com/', 'https://maps.google.com/'),
-        ('https://www.google.com/', 'https://www.google.com:1234/', 'https://www.google.com:1234/'),
-        ('https://www.google.com/', '?query=string', 'https://www.google.com/?query=string'),
-        ('https://www.google.com/', '#fragment', 'https://www.google.com/#fragment'),
-        ('http://www.google.com/', 'http://user:pass@www.google.com/', 'http://user:pass@www.google.com/'),
-        ('http://www.google.com/', 'http://user@www.google.com/', 'http://user@www.google.com/'),
-        ('http://www.google.com/', 'http://:pass@www.google.com/', 'http://:pass@www.google.com/'),
-    ]
+        ("http://www.google.com/", "", "http://www.google.com/"),
+        ("http://www.google.com/", "/", "http://www.google.com/"),
+        ("http://www.google.com/", "maps/", "http://www.google.com/maps/"),
+        ("http://www.google.com/", "one/two/", "http://www.google.com/one/two/"),
+        ("http://www.google.com/mail", "/maps/", "http://www.google.com/maps/"),
+        ("http://www.google.com/", "./", "http://www.google.com/"),
+        ("http://www.google.com/maps", "..", "http://www.google.com/"),
+        (
+            "http://www.google.com/",
+            "https://www.google.com/",
+            "https://www.google.com/",
+        ),
+        (
+            "http://www.google.com/",
+            "https://maps.google.com/",
+            "https://maps.google.com/",
+        ),
+        (
+            "https://www.google.com/",
+            "https://www.google.com:1234/",
+            "https://www.google.com:1234/",
+        ),
+        (
+            "https://www.google.com/",
+            "?query=string",
+            "https://www.google.com/?query=string",
+        ),
+        ("https://www.google.com/", "#fragment", "https://www.google.com/#fragment"),
+        (
+            "http://www.google.com/",
+            "http://user:pass@www.google.com/",
+            "http://user:pass@www.google.com/",
+        ),
+        (
+            "http://www.google.com/",
+            "http://user@www.google.com/",
+            "http://user@www.google.com/",
+        ),
+        (
+            "http://www.google.com/",
+            "http://:pass@www.google.com/",
+            "http://:pass@www.google.com/",
+        ),
+    ],
 )
 def test_assert_same_urljoin_result(base, url, expected):
     urllib_result = urllib_urljoin(base, url)
