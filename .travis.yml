@@ -1,0 +1,14 @@
+sudo: false
+language: python
+python: 3.6
+
+cache:
+  - pip
+
+install:
+  - "python -m pip install -U pip"
+  - "python -m pip install -U setuptools"
+  - "python -m pip install -U tox"
+
+script:
+  - "tox"

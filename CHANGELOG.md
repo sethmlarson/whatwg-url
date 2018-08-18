@@ -12,3 +12,7 @@
 - Added `urlparse` and `urljoin` to be compatible with
   [`urllib3.parse.urlparse`](https://docs.python.org/3/library/urllib.parse.html#urllib.parse.urlparse)
   and [`urllib.parse.urljoin`](https://docs.python.org/3/library/urllib.parse.html#urllib.parse.urljoin).
+
+### Removed
+
+- Removed dependency on the `attrs` package.

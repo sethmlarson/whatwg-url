@@ -1,11 +1,59 @@
+"""Python implementation of the WHATWG URL Living Standard"""
+
 import enum
 import string
 import typing
 import re
 import ipaddress
 import idna
-import attr
+import collections
 import encodings.idna as idna2003
+
+
+__all__ = [
+    "parse_url",
+    "normalize_url",
+    "is_valid_url",
+    "UrlParser",
+    "ParserState",
+    "Url",
+    "UrlParserError",
+    "OPAQUE_ORIGIN",
+    "urlparse",
+    "urljoin",
+    "ParseResult",
+]
+__version__ = "dev"
+__license__ = "Apache-2.0"
+
+
+def parse_url(url, base=None, encoding="utf-8"):
+    """
+    Parses a URL from a string input with an optional base URL.
+    If the input URL is a relative URL then it will be parsed as
+    relative to the base URL.
+
+    :param str url: URL input string
+    :param str base: Optional base URL to use while parsing.
+    :param encoding: Character encoding to use for parsing the URL, defaults to UTF-8.
+    :rtype: Url
+    :raises: UrlParserError
+    :return: The parsed URL.
+    """
+    parser = UrlParser()
+    return parser.parse(url, base=base, encoding=encoding)
+
+
+def normalize_url(url: str, base=None, encoding="utf-8"):
+    return parse_url(url, base=base, encoding=encoding).href
+
+
+def is_valid_url(url: str, encoding="utf-8"):
+    try:
+        parse_url(url, encoding=encoding)
+        return True
+    except UrlParserError:
+        return False
 
 
 class _OpaqueOrigin(object):
@@ -160,19 +208,34 @@ class _UrlParserReturn(Exception):
     pass
 
 
-@attr.s
 class Url:
-    _scheme = attr.ib(default=None)  # type: typing.Optional[str]
-    _hostname = attr.ib(default=None)  # type: typing.Optional[str]
-    _port = attr.ib(default=None)  # type: typing.Optional[int]
-    _username = attr.ib(default=None)  # type: typing.Optional[str]
-    _password = attr.ib(default=None)  # type: typing.Optional[str]
-    _query = attr.ib(default=None)  # type: typing.Optional[str]
-    _fragment = attr.ib(default=None)  # type: typing.Optional[str]
-    _path = attr.ib(default=attr.Factory(list))  # type: typing.List[str]
+    def __init__(
+        self,
+        scheme=None,
+        hostname=None,
+        port=None,
+        username=None,
+        password=None,
+        query=None,
+        fragment=None,
+        path=None,
+        cannot_be_base_url=False,
+        encoding="utf-8",
+    ):
+        if path is None:
+            path = []
 
-    cannot_be_base_url = attr.ib(type=bool, default=False)  # type: bool
-    encoding = attr.ib(type=str, default="utf-8")  # type: str
+        self._scheme = scheme
+        self._hostname = hostname
+        self._port = port
+        self._username = username
+        self._password = password
+        self._query = query
+        self._fragment = fragment
+        self._path = path
+
+        self.encoding = encoding
+        self.cannot_be_base_url = cannot_be_base_url
 
     @property
     def scheme(self):
@@ -519,18 +582,18 @@ class UrlParser(object):
                 self.validation_error = True
                 raise UrlParserError()
 
-            return "".join([percent_encode(c, C0_PERCENT_ENCODE) for c in host])
+            return "".join([_percent_encode(c, C0_PERCENT_ENCODE) for c in host])
 
         # Domain to ASCII
         try:
-            domain = string_percent_decode(host).decode("utf-8")
+            domain = _string_percent_decode(host).decode("utf-8")
         except UnicodeDecodeError:
             raise UrlParserError()
 
         print("DOMAIN", domain)
 
         try:
-            ascii_domain = domain_to_ascii(domain).decode("utf-8").lower()
+            ascii_domain = _domain_to_ascii(domain).decode("utf-8").lower()
             print("IDNA", ascii_domain)
         except (idna.IDNAError, UnicodeError):
             self.validation_error = True
@@ -548,30 +611,6 @@ class UrlParser(object):
         a lot of parsing rules for decimal, octal, hex, different
         numbers of separators, etc.
         """
-
-        def parse_ipv4_number(input_: str):
-            """Parses a single IPv4 number"""
-            print(f"Parsing {input_}")
-
-            r = 10
-
-            try:
-                if len(input_) >= 2:
-                    if input_[:2].lower() == "0x":
-                        r = 16
-                        input_ = input_[2:]
-
-                    elif input_.startswith("0"):
-                        r = 8
-                        input_ = input_[1:]
-
-                if input_ == "":
-                    return 0, False
-
-                return int(input_, r), r != 10
-            except ValueError:
-                return None, False
-
         parts = ascii_domain.split(".")
 
         if parts[-1] == "":
@@ -587,7 +626,7 @@ class UrlParser(object):
             if part == "":
                 return ascii_domain
 
-            n, flag = parse_ipv4_number(part)
+            n, flag = _parse_ipv4_number(part)
             if n is None:
                 return ascii_domain
 
@@ -868,11 +907,11 @@ class UrlParser(object):
                 if self._password_token_seen_flag:
                     if self.url.password is None:
                         self.url._password = ""
-                    self.url._password += percent_encode(char, USERINFO_PERCENT_ENCODE)
+                    self.url._password += _percent_encode(char, USERINFO_PERCENT_ENCODE)
                 else:
                     if self.url.username is None:
                         self.url._username = ""
-                    self.url.username += percent_encode(char, USERINFO_PERCENT_ENCODE)
+                    self.url.username += _percent_encode(char, USERINFO_PERCENT_ENCODE)
 
             self._buffer = ""
 
@@ -1170,7 +1209,7 @@ class UrlParser(object):
                 self.validation_error = True
             if c == "%" and TWO_ASCII_HEX.search(remaining) is None:
                 self.validation_error = True
-            self._buffer += percent_encode(c, PATH_PERCENT_ENCODE)
+            self._buffer += _percent_encode(c, PATH_PERCENT_ENCODE)
 
     def _on_cannot_be_base_url(self, c: str, remaining: str):
         """Handles the CANNOT BE BASE URL state"""
@@ -1190,7 +1229,7 @@ class UrlParser(object):
                 self.validation_error = True
 
             if c != "":
-                self.url._path[0] += percent_encode(c, C0_PERCENT_ENCODE)
+                self.url._path[0] += _percent_encode(c, C0_PERCENT_ENCODE)
 
     def _on_query(self, c: str, remaining: str):
         """Handles the QUERY state"""
@@ -1247,15 +1286,15 @@ class UrlParser(object):
             if c == "%" and TWO_ASCII_HEX.search(remaining) is None:
                 self.validation_error = True
 
-            self.url._fragment += percent_encode(c, FRAGMENT_PERCENT_ENCODE)
+            self.url._fragment += _percent_encode(c, FRAGMENT_PERCENT_ENCODE)
 
 
-def string_percent_decode(data: str) -> bytes:
+def _string_percent_decode(data: str) -> bytes:
     bytes_ = data.encode("utf-8")
-    return percent_decode(bytes_)
+    return _percent_decode(bytes_)
 
 
-def percent_encode(c: str, encode_set: typing.Set[str]) -> str:
+def _percent_encode(c: str, encode_set: typing.Set[str]) -> str:
     if c in encode_set or ord(c) > 0x7e:
         return "".join([f"%{x:02X}" for x in c.encode("utf-8")])
     return c
@@ -1277,7 +1316,7 @@ def _is_c0_control_or_space(c: str) -> bool:
     return c == " " or 0 <= ord(c) <= 0x1f
 
 
-def percent_decode(bytes_: bytes) -> bytes:
+def _percent_decode(bytes_: bytes) -> bytes:
     output = []
     skip = 0
 
@@ -1304,7 +1343,7 @@ def percent_decode(bytes_: bytes) -> bytes:
     return b"".join(output)
 
 
-def domain_to_ascii(domain: str, strict=False) -> bytes:
+def _domain_to_ascii(domain: str, strict=False) -> bytes:
     """Attempt to encode with IDNA 2008 first, if that fails
     then attempt to encode with IDNA 2003.
     """
@@ -1343,3 +1382,100 @@ def domain_to_ascii(domain: str, strict=False) -> bytes:
         if strict and not idna.valid_string_length(s, trailing_dot):
             raise idna.IDNAError("Domain too long")
         return s
+
+
+def _parse_ipv4_number(input_: str):
+    """Parses a single IPv4 number"""
+    print(f"Parsing {input_}")
+
+    r = 10
+
+    try:
+        if len(input_) >= 2:
+            if input_[:2].lower() == "0x":
+                r = 16
+                input_ = input_[2:]
+
+            elif input_.startswith("0"):
+                r = 8
+                input_ = input_[1:]
+
+        if input_ == "":
+            return 0, False
+
+        return int(input_, r), r != 10
+    except ValueError:
+        return None, False
+
+
+class ParseResultMixin(object):
+    def geturl(self):
+        return self.url.href
+
+    @property
+    def username(self):
+        if self.url.password:
+            return self.url.username or ""
+        return self.url.username
+
+    @property
+    def password(self):
+        return self.url.password
+
+    @property
+    def hostname(self):
+        return self.url.hostname
+
+    @property
+    def port(self):
+        return self.url.port
+
+
+class ParseResult(
+    collections.namedtuple(
+        "ParseResult", ["scheme", "netloc", "path", "params", "query", "fragment"]
+    ),
+    ParseResultMixin,
+):
+    slots = ()
+
+    def __new__(cls, scheme, netloc, path, params, query, fragment, url):
+        parse_result = super(ParseResult, cls).__new__(
+            cls,
+            scheme or "",
+            netloc or "",
+            path or "",
+            params or "",
+            query or "",
+            fragment or "",
+        )
+        parse_result.url = url
+        return parse_result
+
+
+def urlparse(urlstring: str, scheme="", allow_fragments=True, encoding="utf-8"):
+    parser = UrlParser(Url())
+    url = parser.parse(urlstring, encoding=encoding)
+    if scheme != "":
+        url.scheme = scheme
+    if not allow_fragments:
+        _add_url_fragment_to_path(url)
+    return ParseResult(
+        url.scheme, url.authority, url.path, "", url.query, url.fragment, url
+    )
+
+
+def urljoin(base, url, allow_fragments=True, encoding="utf-8"):
+    parser = UrlParser(Url())
+    url = parser.parse(url, base=base, encoding=encoding)
+    if not allow_fragments:
+        _add_url_fragment_to_path(url)
+    return url.href
+
+
+def _add_url_fragment_to_path(url):
+    if len(url._path):
+        url._path[-1] += "#" + url.fragment
+    else:
+        url._path.append("#" + url.fragment)
+    url.fragment = None
