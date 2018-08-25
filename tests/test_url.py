@@ -101,3 +101,23 @@ def test_url_fragment():
 
     assert url.fragment is None
     assert url.href == "https://www.google.com/"
+
+
+def test_url_origin():
+    url = whatwg_url.parse_url("https://www.google.com")
+
+    assert url.origin == ("https", "www.google.com", None, None)
+
+
+def test_url_opaque_origin():
+    url = whatwg_url.parse_url("file:///var/tmp/file")
+
+    assert tuple(url.origin) == (None, None, None, None)
+    assert not url.origin == url.origin
+    assert url.origin != url.origin
+
+
+def test_url_blob_origin():
+    url = whatwg_url.parse_url("blob:https://www.google.com")
+
+    assert url.origin == whatwg_url.parse_url("https://www.google.com").origin

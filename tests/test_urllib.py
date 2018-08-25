@@ -1,6 +1,10 @@
 import pytest
-from urllib.parse import urlparse as urllib_urlparse, urljoin as urllib_urljoin
 from whatwg_url import urlparse as whatwg_urlparse, urljoin as whatwg_urljoin
+
+try:
+    from urllib.parse import urlparse as urllib_urlparse, urljoin as urllib_urljoin
+except ImportError:
+    from urlparse import urlparse as urllib_urlparse, urljoin as urllib_urljoin
 
 
 @pytest.mark.parametrize(

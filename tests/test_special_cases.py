@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Source for these URLs:
 # https://www.blackhat.com/docs/us-17/thursday/
 # us-17-Tsai-A-New-Era-Of-SSRF-Exploiting-URL-

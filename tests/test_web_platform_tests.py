@@ -5,8 +5,7 @@ import whatwg_url
 
 
 with open(
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), "testdata.json"),
-    encoding="utf-8",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "testdata.json"), "rb"
 ) as f:
     testdata = json.loads(f.read(), encoding="utf-8")
     testdata = [x for x in testdata if isinstance(x, dict)]

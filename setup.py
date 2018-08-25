@@ -1,3 +1,4 @@
+import io
 import os
 import re
 from setuptools import setup
@@ -5,7 +6,8 @@ from setuptools import setup
 base_dir = os.path.dirname(os.path.abspath(__file__))
 
 version = None
-with open(os.path.join(base_dir, "whatwg_url.py"), encoding="utf-8") as f:
+
+with io.open(os.path.join(base_dir, "whatwg_url.py"), encoding="utf-8") as f:
     for line in f:
         match = re.search(r"^__version__\s+=\s+\"([^\"]+)\"$", line)
         if match:
@@ -16,11 +18,10 @@ with open(os.path.join(base_dir, "whatwg_url.py"), encoding="utf-8") as f:
 
 
 def get_long_description():
-    data = ""
-    with open(os.path.join(base_dir, "README.md"), encoding="utf-8") as f:
-        data += f.read()
+    with io.open(os.path.join(base_dir, "README.md"), encoding="utf-8") as f:
+        data = f.read()
     data += "\n\n"
-    with open(os.path.join(base_dir, "CHANGELOG.md"), encoding="utf-8") as f:
+    with io.open(os.path.join(base_dir, "CHANGELOG.md"), encoding="utf-8") as f:
         data += f.read()
     return data
 
@@ -33,15 +34,22 @@ setup(
     long_description_content_type="text/markdown",
     author="Seth Michael Larson",
     author_email="sethmichaellarson@gmail.com",
-    url="https://github.com/SethMichaelLarson/whatwg-url-python",
+    url="https://github.com/SethMichaelLarson/whatwg-url",
     license="Apache-2.0",
     py_modules=["whatwg_url"],
-    python_requires=">=3.6",
-    install_requires=["idna"],
+    install_requires=["idna", "six", "ipaddress"],
     classifiers=[
-        "Development Status :: 2 - Pre-Alpha",
+        "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
         "Natural Language :: English",
         "License :: OSI Approved :: Apache Software License",
+        "Programming Language :: Python :: 2",
+        "Programming Language :: Python :: 2.7",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.4",
+        "Programming Language :: Python :: 3.5",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Topic :: Internet",
     ],
 )

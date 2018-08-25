@@ -1,5 +1,9 @@
 # whatwg-url
 
+[![Travis](https://img.shields.io/travis/SethMichaelLarson/whatwg-url/master.svg)](https://travis-ci.org/SethMichaelLarson/whatwg-url)
+[![Codecov](https://img.shields.io/codecov/c/github/SethMichaelLarson/whatwg-url/master.svg)](https://codecov.io/gh/SethMichaelLarson/whatwg-url)
+[![PyPI](https://badge.fury.io/py/whatwg-url.svg)](https://pypi.org/project/whatwg-url)
+
 Python implementation of the [WHATWG URL Living Standard](https://url.spec.whatwg.org/).
 
 The latest revision that this package implements of the standard is August 7th, 2018 ([`commit 49060c7`](https://github.com/whatwg/url/commit/49060c74d3047602a572f9e88a6a1101f4fd32f3))
@@ -91,3 +95,7 @@ url.scheme = 'https'
 print(url.scheme)  # 'https'
 print(url.port)  # None
 ```
+
+### "Splatable"
+
+The module is a single file which allows for easy vendoring into projects.
