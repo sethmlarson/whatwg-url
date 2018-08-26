@@ -24,9 +24,6 @@ def assert_with_empty(a, b):
 
 @pytest.mark.parametrize("testdata", testdata)
 def test_web_platform_tests(testdata):
-
-    print(testdata)
-
     if testdata["input"].startswith("blob:"):
         pytest.skip("blob")
 
@@ -38,18 +35,13 @@ def test_web_platform_tests(testdata):
         base = None
     else:
         base = whatwg_url.parse_url(base)
-        print(base.href)
 
     if testdata.get("failure", False):
         with pytest.raises(whatwg_url.UrlParserError):
             whatwg_url.parse_url(testdata["input"], base=base)
 
     else:
-        print("\nREAL VALUES\n")
-
         url = whatwg_url.parse_url(testdata["input"], base=base)
-
-        print("FINAL URL", str(url))
 
         assert_with_empty(url._username, testdata.get("username", None))
         assert_with_empty(url._password, testdata.get("password", None))

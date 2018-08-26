@@ -99,3 +99,7 @@ print(url.port)  # None
 ### "Splatable"
 
 The module is a single file which allows for easy vendoring into projects.
+
+## License
+
+[Apache-2.0](https://github.com/SethMichaelLarson/whatwg-url/blob/master/LICENSE)

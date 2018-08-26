@@ -376,7 +376,6 @@ class Url(object):
 
     @fragment.setter
     def fragment(self, fragment):
-        print(fragment)
         if fragment is None:
             self._fragment = None
             return
@@ -459,13 +458,12 @@ class Url(object):
         return "".join(output)
 
     def __repr__(self):
-        return (
-            "<%s " "scheme=%s " "hostname=%s " "port=%s " "query=%s " "fragment=%s>"
-        ) % (
+        return ("<%s scheme=%r hostname=%r port=%r path=%r query=%r fragment=%r>") % (
             self.__class__.__name__,
             self._scheme,
             self._hostname,
             self._port,
+            self.path,
             self._query,
             self._fragment,
         )
@@ -571,8 +569,7 @@ class UrlParser(object):
         return self.url
 
     def _call_state_handler(self, state, c, remaining):
-        print(state, c, remaining, self._buffer)
-        self._state_handlers[self._state](c, remaining)
+        self._state_handlers[state](c, remaining)
         self._pointer += 1
 
     def parse_host(self, host, is_not_special=False):
@@ -603,16 +600,11 @@ class UrlParser(object):
         except UnicodeDecodeError:
             raise UrlParserError()
 
-        print("DOMAIN", domain)
-
         try:
             ascii_domain = _domain_to_ascii(domain).decode("utf-8").lower()
         except (idna.IDNAError, UnicodeError) as e:
-            print(e)
             self.validation_error = True
             raise UrlParserError()
-
-        print("ASCII_DOMAIN", ascii_domain)
 
         # Contains forbidden host codepoint
         if set(ascii_domain).intersection(FORBIDDEN_HOST_CODE_POINTS):
@@ -1366,8 +1358,7 @@ def _domain_to_ascii(domain, strict=False):
         return idna.encode(
             domain, strict=strict, std3_rules=strict, uts46=True, transitional=False
         )
-    except idna.IDNAError as e:
-        print(e)
+    except idna.IDNAError:
         if isinstance(domain, (bytes, bytearray)):
             domain = domain.decode("ascii")
         domain = idna.uts46_remap(domain, std3_rules=strict, transitional=False)
@@ -1377,13 +1368,13 @@ def _domain_to_ascii(domain, strict=False):
             labels = domain.split(".")
         else:
             labels = IDNA_DOTS_REGEX.split(domain)
-        print("IDNA 2003 LABELS", labels)
+
         if not labels or labels == [""]:
             raise idna.IDNAError("Empty domain")
         if labels[-1] == "":
             del labels[-1]
             trailing_dot = True
-        print("ITER LABELS", labels)
+
         for label in labels:
             try:
                 s = idna2003.ToASCII(label)
@@ -1391,13 +1382,11 @@ def _domain_to_ascii(domain, strict=False):
                 if strict:
                     raise
                 result.append(label.encode("utf-8"))
-                print(result)
                 continue
             if s:
                 result.append(s)
             else:
                 raise idna.IDNAError("Empty label")
-            print(result)
         if trailing_dot:
             result.append(b"")
         s = b".".join(result)
