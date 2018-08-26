@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2018.8.26
 
 ### Added
 
