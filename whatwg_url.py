@@ -20,7 +20,7 @@ __all__ = [
     "urljoin",
     "ParseResult",
 ]
-__version__ = "dev"
+__version__ = "2018.8.26"
 __license__ = "Apache-2.0"
 
 
