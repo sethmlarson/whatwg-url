@@ -40,3 +40,13 @@ matrix:
 
     - env: TOXENV=lint
       python: 3.6
+
+deploy:
+  - provider: "pypi"
+    user: "SethMichaelLarson"
+    password:
+      secure: "ZW+MxzTZ1K/CK5MyDR2CHS8EhS3/XGagI5rK+AVUx87U+0dcv5iTeLpU/L5Iu6kOajYuGeOFcyHuwFa8ILbGqDeMcR0bp3i6Z4AicGQVK1xcTC8C3/nkxGU62Er4iWYpl3oiPN75xhNvfamU4ZYro672Mx0ebAuFJXxmPzfj1YggKmTB7kNv1AUV94S85bwsb4Vmgbd0H5ie74uzaSR3GrLUunT0mqtiJzOAwyGBXAFRjvAX8cBY4bQ6axNnFTyj+84m5S2T/4BnMTg/Y/VwNBkP2rJ3FlhqgxVWoQwvpOMrkqXPiRzojJF6frthBJXC4/L4/luaeDOIk6gaWBlzwpAnQnatVZBQqIJHzVjSnefMk8v5Sh5D3QWlacJK/eU7gXqxJbGj+uV6MY+5dDYG4dJ7G1y9A/vbmVoHBv/0IkMo+yh0KrSHIO4/DTmp0irSqeQr71iCECNxmdlxv6o6JmVgcjIqj56nsvHaQEFB/ylZdhWI2PYA+cIE6sqeVaBE2e0mq7WuYLb4tNYTK1hcRp5dqKoKu7f4W9N6/yWhqxm9iN86LQG0Uq4wwscCdkohMZgkUNvuUQH6r9tSbHIdUpQUD46OkkM/aIzfw2dMVdbC2s3e8XyRaIiKctRrtcktb1YMZgfanv0BbeLH6vBcqfxguML84SCfgGgGzTi4KC8="
+    on:
+      branch: "master"
+      tags: true
+    distributions: "sdist"
