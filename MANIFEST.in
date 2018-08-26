@@ -1,1 +1,1 @@
-include README.md CHANGELOG.md tox.ini dev-requirements.txt
+include LICENSE README.md CHANGELOG.md tox.ini dev-requirements.txt tox.ini setup.cfg

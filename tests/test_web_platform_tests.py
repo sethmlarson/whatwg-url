@@ -1,13 +1,17 @@
+import io
 import json
 import pytest
 import os
 import whatwg_url
 
 
-with open(
+with io.open(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "testdata.json"), "rb"
 ) as f:
-    testdata = json.loads(f.read(), encoding="utf-8")
+    testdata = f.read()
+    if not isinstance(testdata, str):
+        testdata = testdata.decode("utf-8")
+    testdata = json.loads(testdata, encoding="utf-8")
     testdata = [x for x in testdata if isinstance(x, dict)]
 
 
