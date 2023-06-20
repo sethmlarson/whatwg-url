@@ -774,7 +774,10 @@ class UrlParser(object):
         elif self.base.cannot_be_base_url and c == "#":
             self.url._scheme = self.base.scheme
             self.url._path = self.base._path[:]
-            self.url._query = list(self.base.query) if self.base.query is not None else None
+            if self.base.query is None:
+                self.url._query = None
+            else:
+                self.url._query = list(self.base.query)
             self.url._fragment = []
             self.url.cannot_be_base_url = True
             self._state = PARSER_STATE_FRAGMENT
@@ -816,7 +819,10 @@ class UrlParser(object):
             self.url._hostname = self.base.hostname
             self.url._port = self.base.port
             self.url._path = self.base._path[:]
-            self.url._query = self.url._query = list(self.base.query) if self.base.query is not None else None
+            if self.base.query is None:
+                self.url._query = None
+            else:
+                self.url._query = list(self.base.query)
 
         elif c == "/":
             self._state = PARSER_STATE_RELATIVE_SLASH
@@ -837,7 +843,10 @@ class UrlParser(object):
             self.url._hostname = self.base.hostname
             self.url._port = self.base.port
             self.url._path = self.base._path[:]
-            self.url._query = self.url._query = list(self.base.query) if self.base.query is not None else None
+            if self.base.query is None:
+                self.url._query = None
+            else:
+                self.url._query = list(self.base.query)
             self.url._fragment = []
 
             self._state = PARSER_STATE_FRAGMENT
@@ -1040,7 +1049,10 @@ class UrlParser(object):
             if c == "":
                 self.url._hostname = self.base.hostname
                 self.url._path = self.base._path[:]
-                self.url._query = self.url._query = list(self.base.query) if self.base.query is not None else None
+                if self.base.query is None:
+                    self.url._query = None
+                else:
+                    self.url._query = list(self.base.query)
 
             elif c == "?":
                 self.url._hostname = self.base.hostname
@@ -1052,7 +1064,10 @@ class UrlParser(object):
             elif c == "#":
                 self.url._hostname = self.base.hostname
                 self.url._path = self.base._path[:]
-                self.url._query = self.url._query = list(self.base.query) if self.base.query is not None else None
+                if self.base.query is None:
+                    self.url._query = None
+                else:
+                    self.url._query = list(self.base.query)
                 self.url._fragment = []
 
                 self._state = PARSER_STATE_FRAGMENT
