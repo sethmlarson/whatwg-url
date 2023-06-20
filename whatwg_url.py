@@ -304,11 +304,13 @@ class Url(object):
 
     @property
     def query(self):
-        return self._query
+        if self._query is not None:
+            return "".join(self._query)
 
     @property
     def fragment(self):
-        return self._fragment
+        if self._fragment is not None:
+            return "".join(self._fragment)
 
     @property
     def host(self):
@@ -370,7 +372,7 @@ class Url(object):
         if query.startswith("?"):
             query = query[1:]
 
-        self._query = ""
+        self._query = []
         parser = UrlParser(self)
         parser.parse(query, encoding=self.encoding, state_override=PARSER_STATE_QUERY)
 
@@ -383,7 +385,7 @@ class Url(object):
         if fragment.startswith("#"):
             fragment = fragment[1:]
 
-        self._fragment = ""
+        self._fragment = []
         parser = UrlParser(self)
         parser.parse(
             fragment, encoding=self.encoding, state_override=PARSER_STATE_FRAGMENT
@@ -450,10 +452,10 @@ class Url(object):
             output.append(self.path)
 
         if self._query is not None:
-            output.append("?" + self._query)
+            output.append("?" + "".join(self._query))
 
         if self._fragment is not None:
-            output.append("#" + self._fragment)
+            output.append("#" + "".join(self._fragment))
 
         return "".join(output)
 
@@ -557,7 +559,9 @@ class UrlParser(object):
             ):
                 if end_pointer > 0:
                     self._call_state_handler(
-                        self._state, data[self._pointer], data[self._pointer + 1 :]
+                        self._state,
+                        data[self._pointer],
+                        data[self._pointer + 1 : self._pointer + 3]
                     )
 
                 while self._pointer == end_pointer:
@@ -770,8 +774,8 @@ class UrlParser(object):
         elif self.base.cannot_be_base_url and c == "#":
             self.url._scheme = self.base.scheme
             self.url._path = self.base._path[:]
-            self.url._query = self.base.query
-            self.url._fragment = ""
+            self.url._query = list(self.base.query) if self.base.query is not None else None
+            self.url._fragment = []
             self.url.cannot_be_base_url = True
             self._state = PARSER_STATE_FRAGMENT
 
@@ -812,7 +816,7 @@ class UrlParser(object):
             self.url._hostname = self.base.hostname
             self.url._port = self.base.port
             self.url._path = self.base._path[:]
-            self.url._query = self.base.query
+            self.url._query = self.url._query = list(self.base.query) if self.base.query is not None else None
 
         elif c == "/":
             self._state = PARSER_STATE_RELATIVE_SLASH
@@ -823,7 +827,7 @@ class UrlParser(object):
             self.url._hostname = self.base.hostname
             self.url._port = self.base.port
             self.url._path = self.base._path[:]
-            self.url._query = ""
+            self.url._query = []
 
             self._state = PARSER_STATE_QUERY
 
@@ -833,8 +837,8 @@ class UrlParser(object):
             self.url._hostname = self.base.hostname
             self.url._port = self.base.port
             self.url._path = self.base._path[:]
-            self.url._query = self.base.query
-            self.url._fragment = ""
+            self.url._query = self.url._query = list(self.base.query) if self.base.query is not None else None
+            self.url._fragment = []
 
             self._state = PARSER_STATE_FRAGMENT
 
@@ -1036,20 +1040,20 @@ class UrlParser(object):
             if c == "":
                 self.url._hostname = self.base.hostname
                 self.url._path = self.base._path[:]
-                self.url._query = self.base.query
+                self.url._query = self.url._query = list(self.base.query) if self.base.query is not None else None
 
             elif c == "?":
                 self.url._hostname = self.base.hostname
                 self.url._path = self.base._path[:]
-                self.url._query = ""
+                self.url._query = []
 
                 self._state = PARSER_STATE_QUERY
 
             elif c == "#":
                 self.url._hostname = self.base.hostname
                 self.url._path = self.base._path[:]
-                self.url._query = self.base.query
-                self.url._fragment = ""
+                self.url._query = self.url._query = list(self.base.query) if self.base.query is not None else None
+                self.url._fragment = []
 
                 self._state = PARSER_STATE_FRAGMENT
 
@@ -1145,11 +1149,11 @@ class UrlParser(object):
                 self._pointer -= 1
 
         elif self.state_override is None and c == "?":
-            self.url._query = ""
+            self.url._query = []
             self._state = PARSER_STATE_QUERY
 
         elif self.state_override is None and c == "#":
-            self.url._fragment = ""
+            self.url._fragment = []
             self._state = PARSER_STATE_FRAGMENT
 
         elif c != "":
@@ -1201,11 +1205,11 @@ class UrlParser(object):
                     self.url._path.pop(0)
 
             if c == "?":
-                self.url._query = ""
+                self.url._query = []
                 self._state = PARSER_STATE_QUERY
 
             elif c == "#":
-                self.url._fragment = ""
+                self.url._fragment = []
                 self._state = PARSER_STATE_FRAGMENT
 
         else:
@@ -1218,11 +1222,11 @@ class UrlParser(object):
     def _on_cannot_be_base_url(self, c, remaining):
         """Handles the CANNOT BE BASE URL state"""
         if c == "?":
-            self.url._query = ""
+            self.url._query = []
             self._state = PARSER_STATE_QUERY
 
         elif c == "#":
-            self.url._fragment = ""
+            self.url._fragment = []
             self._state = PARSER_STATE_FRAGMENT
 
         else:
@@ -1245,7 +1249,7 @@ class UrlParser(object):
             self.encoding = "utf-8"
 
         if self.state_override is None and c == "#":
-            self.url._fragment = ""
+            self.url._fragment = []
             self._state = PARSER_STATE_FRAGMENT
 
         elif c != "":
@@ -1258,7 +1262,7 @@ class UrlParser(object):
             bytes_ = c.encode(self.encoding)
 
             if bytes_.startswith(b"&#") and bytes_.endswith(b";"):
-                self.url._query += (b"%26%23" + bytes_[2:-1] + b"%3B").decode("ascii")
+                self.url._query.append((b"%26%23" + bytes_[2:-1] + b"%3B").decode("ascii"))
 
             else:
                 is_special = self.url.scheme in SPECIAL_SCHEMES
@@ -1272,9 +1276,9 @@ class UrlParser(object):
                         or byte == 0x3e
                         or (is_special and byte == 0x27)
                     ):
-                        self.url._query += "%" + _hex(byte)
+                        self.url._query.append("%" + _hex(byte))
                     else:
-                        self.url._query += chr(byte)
+                        self.url._query.append(chr(byte))
 
     def _on_fragment(self, c, remaining):
         if c == "":
@@ -1290,7 +1294,7 @@ class UrlParser(object):
             if c == "%" and TWO_ASCII_HEX.search(remaining) is None:
                 self.validation_error = True
 
-            self.url._fragment += _percent_encode(c, FRAGMENT_PERCENT_ENCODE)
+            self.url._fragment.append(_percent_encode(c, FRAGMENT_PERCENT_ENCODE))
 
 
 def _string_percent_decode(data):
