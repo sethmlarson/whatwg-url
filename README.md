@@ -1,8 +1,6 @@
 # whatwg-url
 
-[![Travis](https://img.shields.io/travis/SethMichaelLarson/whatwg-url/master.svg)](https://travis-ci.org/SethMichaelLarson/whatwg-url)
-[![Codecov](https://img.shields.io/codecov/c/github/SethMichaelLarson/whatwg-url/master.svg)](https://codecov.io/gh/SethMichaelLarson/whatwg-url)
-[![PyPI](https://badge.fury.io/py/whatwg-url.svg)](https://pypi.org/project/whatwg-url)
+[![No Maintenance Intended](http://unmaintained.tech/badge.svg)](http://unmaintained.tech/)
 
 Python implementation of the [WHATWG URL Living Standard](https://url.spec.whatwg.org/).
 
